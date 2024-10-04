@@ -1,0 +1,90 @@
+//***************** Сторінка з завершенням замовлення ******************<font></font>
+session_start();<font></font>
+<font></font>
+// формуємо масив із товарами в замовленні (якщо товар один - залишайте тільки перший елемент масиву)<font></font>
+$products_list = array(<font></font>
+    0 => array(<font></font>
+            'product_id' => $_REQUEST['product_id'],    // код товару (з каталогу CRM)<font></font>
+            'price'      => $_REQUEST['product_price'], // ціна товару 1<font></font>
+            'count'      => '1',                     // кількість товару 1<font></font>
+            // якщо є суміжні товари, тоді кількість загального товару ігнорується<font></font>
+            'subs'       => array(<font></font>
+                                0  => array(<font></font>
+                                        'sub_id' => $_REQUEST['product_id'],<font></font>
+                                        'count'  => '1'<font></font>
+                                        ),<font></font>
+                                1  => array(<font></font>
+                                        'sub_id' => $_REQUEST['product_id'],<font></font>
+                                        'count'  => '1'<font></font>
+                                        )<font></font>
+            )<font></font>
+    ),<font></font>
+    1 => array(<font></font>
+            'product_id' => $_REQUEST['product_id'],    // код товару 2 (з каталогу CRM)<font></font>
+            'price'      => $_REQUEST['product_price'], // ціна товару 2<font></font>
+            'count'      => '1',                     // кількість товару 2<font></font>
+            // якщо є суміжні товари, тоді кількість загального товару ігнорується<font></font>
+            'subs'       => array(<font></font>
+                                0  => array(<font></font>
+                                        'sub_id' => $_REQUEST['product_id'],<font></font>
+                                        'count'  => '1'<font></font>
+                                        ),<font></font>
+                                1  => array(<font></font>
+                                        'sub_id' => $_REQUEST['product_id'],<font></font>
+                                        'count'  => '1'<font></font>
+                                        )<font></font>
+            )<font></font>
+        )<font></font>
+);<font></font>
+$products = urlencode(serialize($products_list));<font></font>
+$sender = urlencode(serialize($_SERVER));<font></font>
+// параметри запиту<font></font>
+$data = array(<font></font>
+    'key'             => '63ae48169b6abd886514d8ead4c96d50', // Ваш секретний токен<font></font>
+    'order_id'        => number_format(round(microtime(true)*10),0,'.',''), // ідентифікатор (код) замовлення (автоматично)<font></font>
+    'country'         => 'UA',                         // Географічне напрямок замовлення<font></font>
+    'office'          => '1',                          // Офіс (ідентифікатор в CRM)<font></font>
+    'products'        => $products,                    // масив з товарами в замовленні<font></font>
+    'bayer_name'      => $_REQUEST['name'],            // покупець (П.І.Б.)<font></font>
+    'phone'           => $_REQUEST['phone'],           // телефон<font></font>
+    'email'           => $_REQUEST['email'],           // електронка<font></font>
+    'comment'         => $_REQUEST['product_name'],    // коментар<font></font>
+    'delivery'        => $_REQUEST['delivery'],        // спосіб доставки (id в CRM)<font></font>
+    'delivery_adress' => $_REQUEST['delivery_adress'], // адреса доставки<font></font>
+    'payment'         => '',                           // варіант оплати (id в CRM)<font></font>
+    'sender'          => $sender,                        <font></font>
+    'utm_source'      => $_SESSION['utms']['utm_source'],  // utm_source<font></font>
+    'utm_medium'      => $_SESSION['utms']['utm_medium'],  // utm_medium<font></font>
+    'utm_term'        => $_SESSION['utms']['utm_term'],    // utm_term<font></font>
+    'utm_content'     => $_SESSION['utms']['utm_content'], // utm_content<font></font>
+    'utm_campaign'    => $_SESSION['utms']['utm_campaign'],// utm_campaign<font></font>
+    'additional_1'    => '',                               // Додаткове поле 1<font></font>
+    'additional_2'    => '',                               // Додаткове поле 2<font></font>
+    'additional_3'    => '',                               // Додаткове поле 3<font></font>
+    'additional_4'    => ''                                // Додаткове поле 4<font></font>
+);<font></font>
+<font></font>
+// запит<font></font>
+$curl = curl_init();<font></font>
+curl_setopt($curl, CURLOPT_URL, 'http://halfpith.lp-crm.biz/api/addNewOrder.html');<font></font>
+curl_setopt($curl, CURLOPT_POST, true);<font></font>
+curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);<font></font>
+curl_setopt($curl, CURLOPT_POSTFIELDS, $data);<font></font>
+$out = curl_exec($curl);<font></font>
+curl_close($curl);<font></font>
+//$out – відповідь сервера у форматі JSON<font></font>
+<font></font>
+/*----- Резервна копія замовлення на електронну адресу (якщо замовлення не надійшло в CRM) -----*/<font></font>
+// Відправка замовлення на пошту test@mail.com<font></font>
+$name = stripslashes(htmlspecialchars($_REQUEST['name']));<font></font>
+$phone = stripslashes(htmlspecialchars($_REQUEST['phone']));<font></font>
+$subject = 'Замовлення товару з сайту!'; // заголовок листа<font></font>
+$addressat = "test@mail.com"; // Ваш електронний адрес<font></font>
+$success_url = './form-ok.php?name='.$name.'&phone='.$phone.'&time='.date("Y-m-d H:i:s").'';<font></font>
+$message = "ПІБ: {$name}\nКонтактний телефон: {$phone}\Товар: {$_REQUEST['product_id']}";<font></font>
+$verify = mail($addressat,$subject,$message,"Content-type:text/plain;charset=utf-8\r\n");<font></font>
+if ($verify == 'true'){ //якщо лист надіслано<font></font>
+    header('Location: '.$success_url); //редирект на сторінку спасибі<font></font>
+    echo '<h1 style="color:green;">Вітаємо! Ваше замовлення прийнято!</h1>';<font></font>
+    exit;<font></font>
+}<font></font>
